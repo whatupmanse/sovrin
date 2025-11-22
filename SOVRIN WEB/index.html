@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="icon" type="image/png" href="logo.png" id="dynamic-favicon"> 
+    
+    <title>SOVRIN // IMAGO DEI </title>
+    
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sovrin.netlify.app/">
+    <meta property="og:title" content="SOVRIN // IMAGO DEI">
+    <meta property="og:description" content="EST - SEPTEMBER 2025">
+    <meta property="og:image" content="https://sovrin.netlify.app/logo.png">
+    <meta name="theme-color" content="#ff2a5d">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Russo+One&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- CORE SETTINGS --- */
+        :root {
+            --neon-pink: #ff2a5d;
+            --cyan: #00f3ff;
+            --dark: #050a14;
+            --white: #ffffff;
+            --hud-bg: #050a14;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* --- LAYOUT LOCK --- */
+        html, body {
+            width: 100%; height: 100%; margin: 0; padding: 0;
+            background-color: var(--dark); color: var(--white);
+            font-family: 'Montserrat', sans-serif;
+            overflow: hidden; position: fixed; inset: 0;
+        }
+
+        /* --- BACKGROUND --- */
+        #bg-video {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; z-index: -5;
+        }
+
+        .video-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(120deg, rgba(5,10,20,0.9) 0%, rgba(5,10,20,0.7) 50%, rgba(5,10,20,0.4) 100%);
+            z-index: -4; pointer-events: none;
+        }
+
+        /* --- HUD BARS --- */
+        .hud-bar {
+            position: absolute; left: 0; width: 100%; height: 40px;
+            background: var(--hud-bg); z-index: 500;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px;
+            font-family: 'Share Tech Mono', monospace; font-size: 0.75rem;
+            letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .hud-top { top: 0; }
+        .hud-bottom { bottom: 0; border-top: 1px solid rgba(255,255,255,0.1); border-bottom: none; }
+
+        .hud-static {
+            position: relative; z-index: 10; background: var(--hud-bg); 
+            padding: 0 15px; font-weight: 700; height: 100%; display: flex; align-items: center;
+        }
+        .cyan { color: var(--cyan); }
+        .pink { color: var(--neon-pink); }
+
+        .ticker-wrap {
+            position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: hidden; display: flex; align-items: center;
+            z-index: 1; mask-image: linear-gradient(90deg, transparent 0%, black 15%, black 85%, transparent 100%);
+        }
+        .ticker { display: flex; white-space: nowrap; animation: ticker 40s linear infinite; }
+        .ticker-item { padding: 0 3rem; color: rgba(255, 255, 255, 0.3); }
+        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+
+        /* --- START SCREEN --- */
+        #start-screen { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: #000000; z-index: 99999; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            cursor: pointer; transition: opacity 0.8s ease-out;
+        }
+        .start-btn { 
+            border: 1px solid var(--white); background: rgba(0,0,0,0.8); color: var(--white);
+            padding: 20px 60px; letter-spacing: 4px; font-size: 0.8rem; 
+            text-transform: uppercase; transition: 0.3s; font-family: 'Montserrat', sans-serif; font-weight: 700;
+        }
+        .start-btn:hover { background: var(--white); color: #000; letter-spacing: 6px; }
+
+        /* --- CONTENT VIEWS --- */
+        .view-container {
+            position: absolute; top: 40px; bottom: 40px; left: 0; width: 100%; overflow: hidden;
+        }
+        .view {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 8%; transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            opacity: 0; pointer-events: none; transform: translateX(50px) scale(0.95); filter: blur(10px);
+        }
+        .view.active { opacity: 1; pointer-events: all; transform: translateX(0) scale(1); filter: blur(0); z-index: 10; }
+        .view.inactive-left { transform: translateX(-100px) scale(0.95); opacity: 0; filter: blur(5px); }
+        .view.inactive-right { transform: translateX(100px) scale(0.95); opacity: 0; filter: blur(5px); }
+
+        /* --- TYPOGRAPHY --- */
+        .brand-tag {
+            font-size: 0.9rem; letter-spacing: 4px; color: var(--cyan);
+            margin-bottom: 15px; display: block; font-weight: 900;
+            border-left: 4px solid var(--cyan); padding-left: 15px;
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+        h1 {
+            font-family: 'Russo One', sans-serif; font-size: 5rem; line-height: 0.9;
+            text-transform: uppercase; margin-bottom: 15px; color: var(--white);
+            text-shadow: 4px 4px 0px #333;
+        }
+        .subtitle {
+            font-size: 1.8rem; color: var(--neon-pink);
+            font-family: 'Russo One', sans-serif; letter-spacing: 2px; margin-bottom: 30px;
+            text-shadow: 2px 2px 0px #8a0022;
+        }
+
+        /* --- TEAM TYPEWRITER SECTION --- */
+        .team-section {
+            margin-bottom: 40px;
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            padding-left: 15px;
+        }
+        .team-header {
+            font-size: 0.7rem; letter-spacing: 2px; color: #888;
+            font-weight: 700; text-transform: uppercase; margin-bottom: 5px;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .team-typewriter {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.1rem; 
+            min-height: 1.5rem; 
+            display: flex; align-items: center;
+        }
+        
+        /* The Link Itself */
+        .txt-link {
+            text-decoration: none;
+            color: var(--cyan);
+            text-shadow: 0 0 5px rgba(0, 243, 255, 0.3);
+            transition: all 0.3s ease;
+            pointer-events: none; /* Disabled while typing */
+            cursor: default;
+        }
+
+        /* Active State (Fully Typed) */
+        .txt-link.active {
+            pointer-events: auto; /* Clickable */
+            cursor: pointer;
+            border-bottom: 1px solid transparent;
+        }
+
+        /* Hover Glow Effect */
+        .txt-link.active:hover {
+            color: #fff;
+            text-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan), 0 0 40px var(--cyan);
+        }
+
+        .cursor {
+            color: var(--neon-pink);
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* --- COUNTDOWN --- */
+        .countdown-linear {
+            display: flex; gap: 30px; margin-bottom: 40px;
+            border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px; max-width: 500px;
+        }
+        .cd-item { display: flex; flex-direction: column; align-items: flex-start; }
+        .cd-num { font-family: 'Russo One', sans-serif; font-size: 2.5rem; color: var(--white); text-shadow: 3px 3px 0px #333; }
+        .cd-label { font-size: 0.7rem; text-transform: uppercase; color: #ccc; letter-spacing: 1px; margin-top: 5px; font-weight: 700; }
+
+        /* --- BUTTONS --- */
+        .btn-group { display: flex; gap: 20px; flex-wrap: wrap; }
+        .btn { 
+            text-decoration: none; padding: 15px 30px; 
+            text-transform: uppercase; font-weight: 900; font-size: 0.9rem; 
+            letter-spacing: 2px; transition: 0.2s; cursor: pointer; text-align: center;
+            box-shadow: 5px 5px 0px rgba(0,0,0,0.5);
+        }
+        .btn:active { transform: translate(2px, 2px); box-shadow: 3px 3px 0px rgba(0,0,0,0.5); }
+        .btn-primary { background: var(--neon-pink); color: var(--white); border: none; clip-path: polygon(0 0, 100% 0, 100% 80%, 90% 100%, 0 100%); }
+        .btn-primary:hover { background: var(--white); color: var(--neon-pink); }
+        .btn-secondary { background: rgba(0, 243, 255, 0.1); border: 2px solid var(--cyan); color: var(--cyan); clip-path: polygon(0 0, 100% 0, 100% 80%, 90% 100%, 0 100%); }
+        .btn-secondary:hover { background: var(--cyan); color: #000; }
+
+        /* --- LINKS --- */
+        .links-header { font-family: 'Russo One', sans-serif; font-size: 3rem; margin-bottom: 40px; color: var(--white); border-bottom: 4px solid var(--neon-pink); padding-bottom: 10px; display: inline-block; }
+        .links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 600px; }
+        .link-card { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); padding: 25px; text-decoration: none; color: var(--white); display: flex; justify-content: space-between; transition: 0.2s; backdrop-filter: blur(5px); box-shadow: 4px 4px 0px rgba(0,0,0,0.3); }
+        .link-card:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0px rgba(0,0,0,0.3); background: rgba(255,255,255,0.15); }
+        .link-card span { font-family: 'Russo One', sans-serif; text-transform: uppercase; letter-spacing: 1px; font-size: 1rem; }
+        .arrow-icon { font-size: 1.2rem; color: var(--cyan); font-weight: 900; }
+        .back-btn { margin-top: 40px; background: transparent; border: none; color: #888; cursor: pointer; font-family: 'Montserrat', sans-serif; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; transition: 0.3s; }
+        .back-btn:hover { color: var(--white); transform: translateX(-5px); }
+
+        /* --- 3D REACTOR --- */
+        .reactor-container { 
+            position: absolute; top: 50%; right: -5%; 
+            transform: translateY(-50%) rotateX(15deg) rotateY(-15deg);
+            width: 800px; height: 800px; z-index: -1; opacity: 0.6; pointer-events: none; 
+            transition: all 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        body.links-active .reactor-container { 
+            right: 50%; transform: translate(50%, -50%) rotateX(15deg) rotateY(-45deg) scale(0.8); opacity: 0.2; 
+        }
+        .orbit-ring { position: absolute; top: 50%; left: 50%; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); transform: translate(-50%, -50%); }
+        .r1 { width: 60%; height: 60%; border-color: rgba(255, 42, 93, 0.3); animation: rotateR 20s linear infinite; }
+        .r2 { width: 80%; height: 80%; border-color: rgba(0, 243, 255, 0.2); animation: rotateL 30s linear infinite; }
+        .r3 { width: 100%; height: 100%; border: 1px dashed rgba(255,255,255,0.1); animation: rotateR 60s linear infinite; }
+        .core { position: absolute; top: 50%; left: 50%; width: 200px; height: 200px; transform: translate(-50%, -50%); background: radial-gradient(circle, rgba(0,243,255,0.2) 0%, transparent 70%); filter: blur(20px); animation: pulseCore 3s infinite ease-in-out; }
+        @keyframes rotateR { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+        @keyframes rotateL { from { transform: translate(-50%, -50%) rotate(360deg); } to { transform: translate(-50%, -50%) rotate(0deg); } }
+        @keyframes pulseCore { 0%, 100% { opacity: 0.5; scale: 1; } 50% { opacity: 0.8; scale: 1.2; } }
+
+        @media (max-width: 900px) {
+            .view { padding: 0 5%; align-items: center; text-align: center; }
+            h1 { font-size: 3.5rem; }
+            .countdown-linear { justify-content: center; }
+            .links-grid { width: 100%; }
+            .btn-group { justify-content: center; width: 100%; }
+            .btn { width: 100%; margin-bottom: 10px; }
+            .reactor-container { top: 60%; width: 400px; height: 400px; right: 50%; transform: translateX(50%); }
+            .hud-static { padding: 0 8px; font-size: 0.6rem; }
+            .team-section { border-left: none; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; padding-left: 0; display: flex; flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <video autoplay muted loop playsinline id="bg-video">
+        <source src="bg.mp4" type="video/mp4">
+    </video>
+    <div class="video-overlay"></div>
+    
+    <audio id="bgm" loop></audio>
+
+    <div class="hud-bar hud-top">
+        <div class="hud-static cyan">[ SYSTEM ONLINE ]</div>
+        <div class="ticker-wrap">
+            <div class="ticker">
+                <div class="ticker-item">ENCRYPTION: AES-4096 // SECURE CONNECTION ESTABLISHED</div>
+                <div class="ticker-item">NEW DATA PACKET RECEIVED...</div>
+                <div class="ticker-item">PROTOCOL: IMAGO_DEI_V1 // UPLOADING CONSCIOUSNESS...</div>
+                <div class="ticker-item">WARNING: REALITY INTEGRITY AT 98%</div>
+                <div class="ticker-item">USER DETECTED // WELCOME TO THE NETWORK</div>
+            </div>
+        </div>
+        <div class="hud-static" id="clock">00:00:00</div>
+    </div>
+
+    <div class="hud-bar hud-bottom">
+        <div class="hud-static pink">:: SOVRIN NETWORK ::</div>
+        <div class="ticker-wrap">
+            <div class="ticker" style="animation-direction: reverse; animation-duration: 40s;">
+                <div class="ticker-item">LISTENING TO PORT 8080...</div>
+                <div class="ticker-item">"THE FUTURE IS ALREADY HERE"</div>
+                <div class="ticker-item">COPYRIGHT © 2025 SOVRIN</div>
+                <div class="ticker-item">RENDER: GPU_01 [OK]</div>
+            </div>
+        </div>
+        <div class="hud-static">V. 1.1.4</div>
+    </div>
+
+    <div id="start-screen">
+        <div class="start-btn">[ INITIALIZE PROTOCOL ]</div>
+        <div style="margin-top:10px; font-size:0.7rem; color:#666;">CLICK TO START SYSTEM</div>
+    </div>
+
+    <div class="reactor-container">
+        <div class="orbit-ring r3"></div>
+        <div class="orbit-ring r2"></div>
+        <div class="orbit-ring r1"></div>
+        <div class="core"></div>
+    </div>
+
+    <div class="view-container">
+        <!-- HOME VIEW -->
+        <div class="view active" id="home-view">
+            <div style="max-width: 650px;">
+                <span class="brand-tag">SYSTEM READY // VOL. 1</span>
+                <h1>Imago Dei</h1>
+                <div class="subtitle">11 . 23 . 2025</div>
+
+                <!-- TEAM SECTION -->
+                <div class="team-section">
+                    <div class="team-header">THE TEAM</div>
+                    <div class="team-typewriter">
+                        <!-- IMPORTANT: This is an A tag now -->
+                        <a href="#" target="_blank" class="txt-link" id="team-link"></a><span class="cursor">_</span>
+                    </div>
+                </div>
+                <!-- END TEAM SECTION -->
+
+                <div class="countdown-linear">
+                    <div class="cd-item"><span class="cd-num" id="days">00</span><span class="cd-label">Days</span></div>
+                    <div class="cd-item"><span class="cd-num" id="hours">00</span><span class="cd-label">Hrs</span></div>
+                    <div class="cd-item"><span class="cd-num" id="minutes">00</span><span class="cd-label">Min</span></div>
+                    <div class="cd-item"><span class="cd-num" id="seconds">00</span><span class="cd-label">Sec</span></div>
+                </div>
+
+                <div class="btn-group">
+                    <a href="https://discord.gg/ubTVEtFdRM" target="_blank" class="btn btn-secondary" onmouseenter="playHover()">
+                        JOIN DISCORD
+                    </a>
+                    <button class="btn btn-primary" onclick="switchTab('links')" onmouseenter="playHover()">
+                        ACCESS NETWORK
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- LINKS VIEW -->
+        <div class="view inactive-right" id="links-view">
+            <div style="max-width: 600px; width: 100%;">
+                <h2 class="links-header">SOCIAL MATRIX</h2>
+                <div class="links-grid">
+                    <a href="https://www.instagram.com/sovrinrecords/" target="_blank" class="link-card" onmouseenter="playHover()">
+                        <span>INSTAGRAM</span><div class="arrow-icon">→</div>
+                    </a>
+                    <a href="https://soundcloud.com/sovrinofficial" target="_blank" class="link-card" onmouseenter="playHover()">
+                        <span>SOUNDCLOUD</span><div class="arrow-icon">→</div>
+                    </a>
+                    <a href="https://www.tiktok.com/@sovrinrecords" target="_blank" class="link-card" onmouseenter="playHover()">
+                        <span>TIKTOK</span><div class="arrow-icon">→</div>
+                    </a>
+                    <a href="https://discord.gg/ubTVEtFdRM" target="_blank" class="link-card" onmouseenter="playHover()">
+                        <span>DISCORD SERVER</span><div class="arrow-icon">→</div>
+                    </a>
+                </div>
+                <button class="back-btn" onclick="switchTab('home')" onmouseenter="playHover()">
+                    ← RETURN TO TERMINAL
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const startScreen = document.getElementById('start-screen');
+        const bgm = document.getElementById('bgm');
+        let audioCtx;
+        
+        // Playlist Logic
+        const playlist = [ "bgm1.mp3", "bgm2.mp3", "bgm3.mp3" ];
+        const randomTrack = playlist[Math.floor(Math.random() * playlist.length)];
+        bgm.src = randomTrack;
+        bgm.volume = 0.5;
+
+        // --- CLOCK ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString('en-US', { hour12: false }) + " UTC";
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- TYPEWRITER & LINKS CONFIG ---
+        const teamMembers = [
+            { name: "Limitless (sometimes miles prolly)", link: "https://limitlessedm.straw.page/" },
+            { name: "Gentelhen", link: "https://linktr.ee/gentelhen" },
+            { name: "slyde", link: "https://slyde.carrd.co/" },
+            { name: "James Steven", link: "https://jamessteven.carrd.co/" },
+            { name: "fragrantt", link: "https://guns.lol/fragrantt" },
+            { name: "krs", link: "https://prodkrs.carrd.co/" }
+        ];
+        
+        const linkElement = document.getElementById('team-link');
+        let memberIndex = 0;
+        let charIndex = 0;
+        let isDeleting = false;
+        let typeSpeed = 100;
+        let timer;
+        let isHovering = false; // Flag to pause typewriter
+
+        // Hover Event Listeners for Pausing
+        linkElement.addEventListener('mouseenter', () => {
+            if(linkElement.classList.contains('active')) {
+                isHovering = true;
+                clearTimeout(timer); // Stop the loop
+            }
+        });
+
+        linkElement.addEventListener('mouseleave', () => {
+            if(isHovering) {
+                isHovering = false;
+                // Resume loop immediately
+                typeWriter(); 
+            }
+        });
+
+        function typeWriter() {
+            // If hovering, do nothing (safeguard)
+            if(isHovering) return;
+
+            const currentMember = teamMembers[memberIndex];
+            const currentName = currentMember.name;
+
+            if (isDeleting) {
+                // Deleting phase
+                linkElement.classList.remove('active'); // Disable link/glow
+                linkElement.removeAttribute('href');    // Remove link
+                
+                linkElement.textContent = currentName.substring(0, charIndex - 1);
+                charIndex--;
+                typeSpeed = 50;
+            } else {
+                // Typing phase
+                linkElement.textContent = currentName.substring(0, charIndex + 1);
+                charIndex++;
+                typeSpeed = 100;
+            }
+
+            if (!isDeleting && charIndex === currentName.length) {
+                // Name fully typed: ACTIVATE LINK
+                linkElement.href = currentMember.link;
+                linkElement.classList.add('active'); // Activates CSS glow & pointer events
+                
+                typeSpeed = 2000; // Pause before deleting
+                isDeleting = true;
+            } else if (isDeleting && charIndex === 0) {
+                // Fully deleted
+                isDeleting = false;
+                memberIndex = (memberIndex + 1) % teamMembers.length;
+                typeSpeed = 500;
+            }
+
+            timer = setTimeout(typeWriter, typeSpeed);
+        }
+
+        // --- FAVICON ---
+        function makeFaviconCircular() {
+            const img = new Image();
+            img.src = 'logo.png';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 64; canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.beginPath(); ctx.arc(32, 32, 32, 0, 2 * Math.PI); ctx.closePath();
+                ctx.clip(); ctx.drawImage(img, 0, 0, 64, 64);
+                document.getElementById('dynamic-favicon').href = canvas.toDataURL();
+            };
+        }
+        makeFaviconCircular();
+
+        // --- INTERACTION ---
+        startScreen.addEventListener('click', () => {
+            startScreen.style.opacity = '0';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                typeWriter(); // Start typing loop
+            }, 800);
+            
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            bgm.play().catch(e => console.error("Audio error:", e));
+        });
+
+        // --- SFX ---
+        function playHover() {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            const now = audioCtx.currentTime;
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(1400, now + 0.1);
+            gain.gain.setValueAtTime(0.05, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        }
+
+        function switchTab(target) {
+            const home = document.getElementById('home-view');
+            const links = document.getElementById('links-view');
+            const body = document.body;
+
+            // SFX
+            if(audioCtx) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sawtooth';
+                const now = audioCtx.currentTime;
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            if (target === 'links') {
+                home.classList.remove('active'); home.classList.add('inactive-left');
+                links.classList.remove('inactive-right'); links.classList.add('active');
+                body.classList.add('links-active');
+            } else {
+                links.classList.remove('active'); links.classList.add('inactive-right');
+                home.classList.remove('inactive-left'); home.classList.add('active');
+                body.classList.remove('links-active');
+            }
+        }
+
+        // --- COUNTDOWN ---
+        const countDownDate = new Date("Nov 24, 2025 00:00:00").getTime();
+        setInterval(() => {
+            const now = new Date().getTime();
+            const distance = countDownDate - now;
+            const d = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((distance % (1000 * 60)) / 1000);
+            document.getElementById("days").innerText = d < 10 ? "0"+d : d;
+            document.getElementById("hours").innerText = h < 10 ? "0"+h : h;
+            document.getElementById("minutes").innerText = m < 10 ? "0"+m : m;
+            document.getElementById("seconds").innerText = s < 10 ? "0"+s : s;
+        }, 1000);
+
+        // Title Scroll
+        let titleText = "SOVRIN // IMAGO DEI   ::   "; 
+        function scrollTitle() {
+            titleText = titleText.substring(1) + titleText.substring(0, 1);
+            document.title = titleText;
+            setTimeout(scrollTitle, 200); 
+        }
+        scrollTitle();
+    </script>
+</body>
+</html>

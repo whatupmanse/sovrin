@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOVRIN // COMMAND INTERFACE</title>
+    <link rel="icon" type="image/png" href="logo.png"> 
+    
+    <!-- FONTS: Rajdhani (Tech), Space Grotesk (Headers), Share Tech Mono (Data) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Space+Grotesk:wght@300;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-deep: #050505;
+            --bg-panel: #0a0a0a;
+            --border: rgba(255, 255, 255, 0.15);
+            --border-active: rgba(255, 255, 255, 0.4);
+            --pink: #ff2a5d;
+            --cyan: #00f3ff;
+            --text-main: #e0e0e0;
+            --text-dim: #555;
+            
+            /* SIZING */
+            --nav-width: 260px;
+            --aside-width: 300px;
+            --header-height: 60px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; scrollbar-width: none; outline: none; }
+        ::-webkit-scrollbar { display: none; }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Rajdhani', sans-serif;
+            height: 100vh; width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- SCANLINE & NOISE OVERLAY (THE GRIT) --- */
+        .screen-fx {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none; z-index: 9999;
+        }
+
+        /* --- VIDEO BG --- */
+        .bg-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -5;
+        }
+        #bg-video {
+            width: 100%; height: 100%; object-fit: cover; opacity: 0.2; filter: grayscale(100%) contrast(1.3);
+        }
+
+        /* --- LAYOUT GRID --- */
+        .app-grid {
+            display: grid;
+            grid-template-columns: var(--nav-width) 1fr var(--aside-width);
+            grid-template-rows: var(--header-height) 1fr;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* 1. HEADER */
+        .top-bar {
+            grid-column: 1 / -1;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; background: rgba(5, 5, 5, 0.8);
+            backdrop-filter: blur(10px); z-index: 10;
+        }
+        .logo { font-family: 'Space Grotesk'; font-weight: 900; font-size: 1.5rem; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
+        .live-dot { width: 10px; height: 10px; background: var(--pink); border-radius: 50%; box-shadow: 0 0 10px var(--pink); animation: blink 2s infinite; }
+        .sys-time { font-family: 'Share Tech Mono'; color: var(--cyan); font-size: 0.9rem; }
+
+        /* 2. SIDEBAR (LEFT) */
+        .nav-panel {
+            grid-row: 2 / -1;
+            border-right: 1px solid var(--border);
+            background: rgba(10, 10, 10, 0.6);
+            display: flex; flex-direction: column;
+            padding: 30px 0;
+        }
+        .nav-btn {
+            padding: 15px 30px;
+            background: transparent; border: none; border-left: 2px solid transparent;
+            color: var(--text-dim); font-family: 'Rajdhani'; font-weight: 600;
+            text-transform: uppercase; font-size: 1.1rem; letter-spacing: 2px;
+            cursor: pointer; text-align: left; transition: 0.3s;
+        }
+        .nav-btn:hover { color: var(--text-main); background: rgba(255,255,255,0.03); }
+        .nav-btn.active { color: var(--text-main); border-left-color: var(--cyan); background: linear-gradient(90deg, rgba(0, 243, 255, 0.1), transparent); }
+
+        /* 3. MAIN CONTENT (CENTER) */
+        .main-viewport {
+            position: relative; overflow-y: auto; overflow-x: hidden;
+            background: rgba(0,0,0,0.2);
+        }
+        .content-section {
+            display: none; padding: 40px; opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+        .content-section.active { display: block; }
+        
+        /* Typography */
+        h1 { font-family: 'Space Grotesk'; font-size: 4rem; line-height: 0.9; margin-bottom: 10px; text-transform: uppercase; color: #fff; }
+        .sub-header { color: var(--pink); font-family: 'Share Tech Mono'; letter-spacing: 2px; margin-bottom: 30px; display: block; }
+
+        /* Cards & Grid */
+        .bento-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .cyber-card {
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+            padding: 25px; position: relative; transition: 0.3s;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .cyber-card::before {
+            content: ''; position: absolute; top: -1px; left: -1px; width: 10px; height: 10px;
+            border-top: 1px solid var(--cyan); border-left: 1px solid var(--cyan);
+        }
+        .cyber-card:hover { border-color: var(--border-active); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* 4. ASIDE (RIGHT - VISUALIZER & TOOLS) */
+        .aside-panel {
+            border-left: 1px solid var(--border);
+            background: rgba(5, 5, 5, 0.8); backdrop-filter: blur(15px);
+            display: flex; flex-direction: column;
+        }
+        .viz-container {
+            height: 200px; border-bottom: 1px solid var(--border);
+            position: relative; background: #000;
+        }
+        canvas#viz-canvas { width: 100%; height: 100%; opacity: 0.8; }
+        
+        .widget { padding: 20px; border-bottom: 1px solid var(--border); }
+        .widget-title { font-family: 'Share Tech Mono'; color: var(--text-dim); font-size: 0.7rem; margin-bottom: 10px; }
+        
+        .action-btn {
+            width: 100%; background: transparent; border: 1px solid var(--border);
+            color: var(--cyan); padding: 12px; font-family: 'Share Tech Mono';
+            cursor: pointer; text-transform: uppercase; transition: 0.2s; margin-bottom: 10px;
+        }
+        .action-btn:hover { background: var(--cyan); color: #000; }
+        .action-btn.danger { color: var(--pink); border-color: var(--pink); }
+        .action-btn.danger:hover { background: var(--pink); color: #fff; }
+
+        /* --- UPLINK FORM --- */
+        .cyber-input {
+            width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            color: #fff; padding: 15px; font-family: 'Share Tech Mono'; margin-bottom: 15px;
+        }
+        .cyber-input:focus { border-color: var(--cyan); }
+
+        /* --- ADMIN OVERLAY --- */
+        #admin-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 10000;
+            align-items: center; justify-content: center; backdrop-filter: blur(5px);
+        }
+        .admin-box {
+            width: 800px; height: 600px; background: #080808; border: 1px solid var(--pink);
+            display: flex; flex-direction: column; box-shadow: 0 0 50px rgba(255, 42, 93, 0.2);
+        }
+        .admin-header { padding: 20px; background: var(--pink); color: #fff; font-family: 'Space Grotesk'; font-weight: bold; display: flex; justify-content: space-between; }
+        .admin-body { flex: 1; padding: 20px; display: flex; gap: 20px; }
+        .admin-list { width: 250px; border-right: 1px solid #333; overflow-y: auto; }
+        .admin-details { flex: 1; padding-left: 20px; }
+        .sub-item { padding: 10px; color: #666; cursor: pointer; font-family: 'Share Tech Mono'; border-bottom: 1px solid #222; }
+        .sub-item:hover, .sub-item.active { color: #fff; background: #111; }
+
+        /* --- UTILS --- */
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .hidden-trigger { position: fixed; bottom: 0; right: 0; width: 10px; height: 10px; cursor: crosshair; z-index: 99999; }
+
+        /* RESPONSIVE */
+        @media (max-width: 900px) {
+            .app-grid { grid-template-columns: 1fr; grid-template-rows: 60px auto 1fr; }
+            .nav-panel { display: none; } /* Hide sidebar on mobile for clean look, use hamburger in real prod */
+            .aside-panel { display: none; } 
+            .main-viewport { grid-row: 2; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- FX LAYERS -->
+    <div class="screen-fx"></div>
+    <div class="bg-container">
+        <video autoplay muted loop playsinline id="bg-video"><source src="bg.mp4" type="video/mp4"></video>
+    </div>
+    <audio id="bgm" loop crossOrigin="anonymous"><source src="bgm.mp3" type="audio/mpeg"></audio>
+    <div class="hidden-trigger" onclick="toggleAdmin()"></div>
+
+    <!-- ADMIN MODAL -->
+    <div id="admin-modal">
+        <div class="admin-box" id="login-view" style="height: auto; padding: 40px; text-align: center;">
+            <h2 style="color:var(--pink); margin-bottom: 20px; font-family: 'Space Grotesk';">SECURITY CLEARANCE</h2>
+            <input type="password" id="admin-pass" class="cyber-input" placeholder="ENTER PASSCODE" style="text-align: center; width: 200px;">
+            <button class="action-btn" onclick="attemptLogin()">AUTHENTICATE</button>
+            <button class="action-btn" style="border:none; color:#666;" onclick="toggleAdmin()">CANCEL</button>
+        </div>
+
+        <div class="admin-box" id="dash-view" style="display:none;">
+            <div class="admin-header">
+                <span>// ADMIN CONSOLE</span>
+                <span style="cursor:pointer;" onclick="toggleAdmin()">[X]</span>
+            </div>
+            <div class="admin-body">
+                <div class="admin-list" id="sub-list"></div>
+                <div class="admin-details">
+                    <h2 id="adm-title" style="color:#fff; margin-bottom: 10px;">NO SIGNAL</h2>
+                    <p id="adm-msg" style="color: #888; font-family: 'Share Tech Mono'; margin-bottom: 20px;"></p>
+                    
+                    <!-- Mini Viz for Admin -->
+                    <canvas id="admin-viz" style="width: 100%; height: 100px; background: #000; border: 1px solid #333; margin-bottom: 20px;"></canvas>
+                    
+                    <div style="display:flex; gap: 10px;">
+                        <button class="action-btn" onclick="window.open(currentLink, '_blank')">OPEN LINK</button>
+                        <button class="action-btn danger" onclick="deleteSignal()">DELETE</button>
+                    </div>
+                </div>
+            </div>
+            <audio id="demo-player" style="display:none;"></audio>
+        </div>
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div class="app-grid">
+        
+        <!-- 1. TOP BAR -->
+        <header class="top-bar">
+            <div class="logo">
+                <div class="live-dot"></div> SOVRIN // NETWORK
+            </div>
+            <div class="sys-time" id="clock">00:00:00 UTC</div>
+        </header>
+
+        <!-- 2. LEFT NAV -->
+        <nav class="nav-panel">
+            <button class="nav-btn active" onclick="switchTab('dashboard')">01 // DASHBOARD</button>
+            <button class="nav-btn" onclick="switchTab('operatives')">02 // OPERATIVES</button>
+            <button class="nav-btn" onclick="switchTab('uplink')">03 // UPLINK</button>
+            <div style="margin-top: auto; padding: 20px; color: #444; font-size: 0.7rem;">
+                SYSTEM V.2.4<br>CONNECTED: YES
+            </div>
+        </nav>
+
+        <!-- 3. CENTER CONTENT -->
+        <main class="main-viewport">
+            
+            <!-- INTRO OVERLAY (Click to Start) -->
+            <div id="intro-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; background:#000; z-index:50; display:flex; align-items:center; justify-content:center; flex-direction:column; cursor:pointer;" onclick="initSystem()">
+                <h1 style="font-size: 2rem;">SYSTEM OFFLINE</h1>
+                <p style="color: var(--cyan); font-family: 'Share Tech Mono';">CLICK TO INITIALIZE INTERFACE</p>
+            </div>
+
+            <!-- DASHBOARD -->
+            <div id="dashboard" class="content-section active">
+                <span class="sub-header">:: RECENT TRANSMISSIONS</span>
+                <h1>IMAGO DEI</h1>
+                <p style="max-width: 600px; margin-bottom: 40px; color: #888; line-height: 1.6;">
+                    The debut compilation featuring 12 tracks of high-fidelity auditory data. 
+                    System integrity at 100%. Available on all streaming protocols.
+                </p>
+
+                <div class="bento-grid">
+                    <div class="cyber-card">
+                        <div style="color: var(--cyan); font-size: 0.8rem; margin-bottom: 10px;">DATA STREAM</div>
+                        <h3 style="font-size: 1.5rem; font-family:'Space Grotesk'; margin-bottom: 10px;">SoundCloud</h3>
+                        <button class="action-btn" onclick="window.open('https://soundcloud.com/sovrinofficial', '_blank')">ACCESS LINK</button>
+                    </div>
+                    <div class="cyber-card">
+                        <div style="color: var(--pink); font-size: 0.8rem; margin-bottom: 10px;">MERCHANDISE</div>
+                        <h3 style="font-size: 1.5rem; font-family:'Space Grotesk'; margin-bottom: 10px;">Sector 4 Gear</h3>
+                        <button class="action-btn danger">SHOP NOW</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OPERATIVES -->
+            <div id="operatives" class="content-section">
+                <span class="sub-header">:: ACTIVE UNITS</span>
+                <h1>OPERATIVES</h1>
+                
+                <div class="bento-grid">
+                    <!-- Artist Card -->
+                    <div class="cyber-card" style="padding:0; height: 300px; overflow:hidden; border: 1px solid #333;">
+                        <img src="https://via.placeholder.com/400x400/111/333?text=NEXUS" style="width:100%; height:100%; object-fit:cover; opacity:0.7; transition:0.3s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">
+                        <div style="position:absolute; bottom:0; width:100%; padding: 20px; background: linear-gradient(transparent, #000);">
+                            <h2 style="margin:0; color: var(--cyan);">NEXUS</h2>
+                            <span style="font-family:'Share Tech Mono'; font-size:0.8rem;">SPEC: NEUROFUNK</span>
+                        </div>
+                    </div>
+                    <div class="cyber-card" style="padding:0; height: 300px; overflow:hidden; border: 1px solid #333;">
+                        <img src="https://via.placeholder.com/400x400/111/333?text=VOID" style="width:100%; height:100%; object-fit:cover; opacity:0.7; transition:0.3s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">
+                        <div style="position:absolute; bottom:0; width:100%; padding: 20px; background: linear-gradient(transparent, #000);">
+                            <h2 style="margin:0; color: var(--pink);">VOID WALKER</h2>
+                            <span style="font-family:'Share Tech Mono'; font-size:0.8rem;">SPEC: DEATHSTEP</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UPLINK -->
+            <div id="uplink" class="content-section">
+                <span class="sub-header">:: SECURE CHANNEL</span>
+                <h1>SUBMIT DEMO</h1>
+                <div style="max-width: 500px;">
+                    <input type="text" id="u-name" class="cyber-input" placeholder="OPERATIVE ALIAS">
+                    <input type="text" id="u-link" class="cyber-input" placeholder="DATA LINK (MP3/WAV)">
+                    <textarea id="u-msg" class="cyber-input" rows="4" placeholder="MESSAGE..."></textarea>
+                    <button class="action-btn" onclick="uploadData()">INITIATE UPLOAD</button>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- 4. RIGHT ASIDE (TELEMETRY) -->
+        <aside class="aside-panel">
+            <div class="viz-container">
+                <canvas id="viz-canvas"></canvas>
+                <div style="position:absolute; bottom:5px; right:5px; color: var(--cyan); font-size:0.6rem; font-family:'Share Tech Mono';">AUDIO_VISUALIZER_V1</div>
+            </div>
+            
+            <div class="widget">
+                <div class="widget-title">AUDIO CONTROLS</div>
+                <button class="action-btn" id="mute-btn" onclick="toggleMute()">MUTE AUDIO</button>
+            </div>
+
+            <div class="widget">
+                <div class="widget-title">SYSTEM TESTS</div>
+                <button class="action-btn danger" onclick="bassTest()">BASS CALIBRATION</button>
+            </div>
+
+            <div class="widget" style="flex:1; border-bottom:none;">
+                <div class="widget-title">LOG</div>
+                <div style="color:#444; font-family:'Share Tech Mono'; font-size:0.7rem; line-height:1.5;">
+                    > SYSTEM INIT... OK<br>
+                    > CONNECTED TO SOVRIN<br>
+                    > WAITING FOR INPUT...
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <script>
+        // --- SYSTEM CLOCK ---
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString() + " UTC";
+        }, 1000);
+
+        // --- CORE LOGIC ---
+        let audioCtx, analyser, bgmSrc, demoSrc;
+        const bgm = document.getElementById('bgm');
+        const demoPlayer = document.getElementById('demo-player');
+        let db = JSON.parse(localStorage.getItem('sovrin_db_v2')) || [];
+        let currentLink = "";
+        let currentIdx = null;
+
+        function initSystem() {
+            const overlay = document.getElementById('intro-overlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 500);
+
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // BGM Setup
+            bgmSrc = audioCtx.createMediaElementSource(bgm);
+            analyser = audioCtx.createAnalyser();
+            bgmSrc.connect(analyser);
+            analyser.connect(audioCtx.destination);
+
+            // Demo Setup (Reuse analyser)
+            demoSrc = audioCtx.createMediaElementSource(demoPlayer);
+            demoSrc.connect(analyser);
+
+            bgm.volume = 0.4;
+            bgm.play();
+            startViz();
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // --- VISUALIZER (SIDEBAR) ---
+        function startViz() {
+            const canvas = document.getElementById('viz-canvas');
+            const ctx = canvas.getContext('2d');
+            const adminCanvas = document.getElementById('admin-viz');
+            const adminCtx = adminCanvas.getContext('2d');
+
+            function render() {
+                requestAnimationFrame(render);
+                
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteFrequencyData(dataArray);
+
+                // 1. SIDEBAR VIZ (Classic Bars)
+                canvas.width = canvas.clientWidth; 
+                canvas.height = canvas.clientHeight;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const barWidth = (canvas.width / bufferLength) * 2.5;
+                let x = 0;
+                for(let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * canvas.height;
+                    
+                    // Color logic: Cyan base, Pink peaks
+                    ctx.fillStyle = (barHeight > canvas.height * 0.7) ? '#ff2a5d' : '#00f3ff';
+                    ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                    x += barWidth + 1;
+                }
+
+                // 2. ADMIN VIZ (If visible)
+                if(document.getElementById('dash-view').style.display === 'block') {
+                    adminCanvas.width = adminCanvas.clientWidth;
+                    adminCanvas.height = adminCanvas.clientHeight;
+                    adminCtx.clearRect(0, 0, adminCanvas.width, adminCanvas.height);
+                    let ax = 0;
+                    const aBarW = (adminCanvas.width / bufferLength) * 2.5;
+                    for(let i = 0; i < bufferLength; i++) {
+                        const h = (dataArray[i] / 255) * adminCanvas.height;
+                        adminCtx.fillStyle = '#ff2a5d';
+                        adminCtx.fillRect(ax, adminCanvas.height - h, aBarW, h);
+                        ax += aBarW + 1;
+                    }
+                }
+            }
+            render();
+        }
+
+        // --- UPLOAD & ADMIN ---
+        function uploadData() {
+            const n = document.getElementById('u-name').value;
+            const l = document.getElementById('u-link').value;
+            const m = document.getElementById('u-msg').value;
+            if(n && l) {
+                db.push({ name: n, link: l, msg: m, date: new Date().toLocaleDateString() });
+                localStorage.setItem('sovrin_db_v2', JSON.stringify(db));
+                alert("PACKET UPLOADED");
+                document.getElementById('u-name').value = "";
+                document.getElementById('u-link').value = "";
+                document.getElementById('u-msg').value = "";
+            }
+        }
+
+        function toggleAdmin() {
+            const modal = document.getElementById('admin-modal');
+            modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+            
+            // Reset views
+            document.getElementById('login-view').style.display = 'block';
+            document.getElementById('dash-view').style.display = 'none';
+            
+            // Pause demo if closing
+            if(modal.style.display === 'none') {
+                demoPlayer.pause();
+                bgm.play();
+            }
+        }
+
+        function attemptLogin() {
+            if(document.getElementById('admin-pass').value === 'sovrin2025') {
+                document.getElementById('login-view').style.display = 'none';
+                document.getElementById('dash-view').style.display = 'flex'; // Flex for layout
+                renderAdminList();
+            } else {
+                alert("INVALID CREDENTIALS");
+            }
+        }
+
+        function renderAdminList() {
+            const list = document.getElementById('sub-list');
+            list.innerHTML = '';
+            db.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'sub-item';
+                div.innerText = `> ${item.name}`;
+                div.onclick = () => loadSignal(idx);
+                list.appendChild(div);
+            });
+        }
+
+        function loadSignal(idx) {
+            currentIdx = idx;
+            const item = db[idx];
+            currentLink = item.link;
+            document.getElementById('adm-title').innerText = item.name;
+            document.getElementById('adm-msg').innerText = `DATE: ${item.date} // MSG: ${item.msg}`;
+            
+            bgm.pause();
+            demoPlayer.src = item.link;
+            demoPlayer.play().catch(e => alert("Stream Error: " + e));
+        }
+
+        function deleteSignal() {
+            if(currentIdx !== null) {
+                db.splice(currentIdx, 1);
+                localStorage.setItem('sovrin_db_v2', JSON.stringify(db));
+                renderAdminList();
+                document.getElementById('adm-title').innerText = "DELETED";
+                demoPlayer.pause();
+            }
+        }
+
+        // --- TOOLS ---
+        function toggleMute() {
+            bgm.muted = !bgm.muted;
+            demoPlayer.muted = !demoPlayer.muted;
+            document.getElementById('mute-btn').innerText = bgm.muted ? "UNMUTE" : "MUTE AUDIO";
+        }
+
+        function bassTest() {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 1);
+            g.gain.setValueAtTime(1, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
+            osc.start(); osc.stop(audioCtx.currentTime + 1);
+
+            document.body.style.transform = "translateX(5px)";
+            setTimeout(() => document.body.style.transform = "translateX(0)", 100);
+        }
+    </script>
+</body>
+</html>
