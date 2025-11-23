@@ -25,27 +25,67 @@
             --dark: #050a14;
             --white: #ffffff;
             --hud-bg: #050a14;
+            --discord-blurple: #5865F2;
+            --error-red: #ff3333;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; cursor: crosshair; }
 
-        /* --- LAYOUT LOCK --- */
         html, body {
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--dark); color: var(--white);
             font-family: 'Montserrat', sans-serif;
             overflow: hidden; position: fixed; inset: 0;
+            transition: all 1s ease;
+        }
+
+        /* --- IMMERSIVE LAYERS --- */
+        .crt-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none; z-index: 800;
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+        }
+
+        .mouse-spotlight {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(600px circle at var(--x, 50%) var(--y, 50%), rgba(0, 243, 255, 0.06), transparent 40%);
+            pointer-events: none; z-index: 799;
+        }
+
+        .scan-line {
+            position: fixed; top: 0; left: 0; width: 100%; height: 5px;
+            background: rgba(0, 243, 255, 0.3);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+            opacity: 0.5; z-index: 801; pointer-events: none;
+            animation: scan 8s linear infinite;
+        }
+        @keyframes scan { 0% { top: -10%; } 100% { top: 110%; } }
+
+        .particle {
+            position: absolute; background: var(--white);
+            border-radius: 50%; opacity: 0;
+            pointer-events: none; animation: floatUp linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            20% { opacity: 0.5; }
+            80% { opacity: 0.5; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
         }
 
         /* --- BACKGROUND --- */
         #bg-video {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; z-index: -5;
+            object-fit: cover; z-index: -5; opacity: 0.6;
         }
 
         .video-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(120deg, rgba(5,10,20,0.9) 0%, rgba(5,10,20,0.7) 50%, rgba(5,10,20,0.4) 100%);
+            background: linear-gradient(120deg, rgba(5,10,20,0.95) 0%, rgba(5,10,20,0.8) 50%, rgba(5,10,20,0.5) 100%);
             z-index: -4; pointer-events: none;
         }
 
@@ -57,6 +97,7 @@
             padding: 0 20px;
             font-family: 'Share Tech Mono', monospace; font-size: 0.75rem;
             letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
         }
         .hud-top { top: 0; }
         .hud-bottom { bottom: 0; border-top: 1px solid rgba(255,255,255,0.1); border-bottom: none; }
@@ -80,7 +121,8 @@
         /* --- START SCREEN --- */
         #start-screen { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background-color: #000000; z-index: 99999; 
+            background-color: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+            z-index: 99999; 
             display: flex; flex-direction: column; justify-content: center; align-items: center; 
             cursor: pointer; transition: opacity 0.8s ease-out;
         }
@@ -88,22 +130,41 @@
             border: 1px solid var(--white); background: rgba(0,0,0,0.8); color: var(--white);
             padding: 20px 60px; letter-spacing: 4px; font-size: 0.8rem; 
             text-transform: uppercase; transition: 0.3s; font-family: 'Montserrat', sans-serif; font-weight: 700;
+            pointer-events: all;
         }
-        .start-btn:hover { background: var(--white); color: #000; letter-spacing: 6px; }
+        .start-btn:hover { background: var(--white); color: #000; letter-spacing: 6px; box-shadow: 0 0 20px rgba(255,255,255,0.5); }
 
-        /* --- CONTENT VIEWS --- */
+        /* --- MAIN UI WRAPPER --- */
+        #main-ui { width: 100%; height: 100%; transition: opacity 1.5s ease; }
+
         .view-container {
             position: absolute; top: 40px; bottom: 40px; left: 0; width: 100%; overflow: hidden;
         }
         .view {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center;
-            padding: 0 8%; transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            padding: 0 8%; transition: all 1.2s cubic-bezier(0.22, 1, 0.36, 1);
             opacity: 0; pointer-events: none; transform: translateX(50px) scale(0.95); filter: blur(10px);
+            align-items: flex-start; text-align: left;
         }
         .view.active { opacity: 1; pointer-events: all; transform: translateX(0) scale(1); filter: blur(0); z-index: 10; }
         .view.inactive-left { transform: translateX(-100px) scale(0.95); opacity: 0; filter: blur(5px); }
         .view.inactive-right { transform: translateX(100px) scale(0.95); opacity: 0; filter: blur(5px); }
+
+        /* --- CRITICAL MODE (1 HOUR LEFT) --- */
+        body.critical-mode .view.active { padding: 0; align-items: center; text-align: center; }
+        body.critical-mode .flavor-text-container {
+            top: auto; bottom: 130px; right: auto; left: 50%; transform: translateX(-50%);
+            text-align: center; width: 100%; max-width: 600px;
+        }
+        body.critical-mode .reactor-container {
+            right: 50%; transform: translate(50%, -50%) rotateX(15deg) rotateY(-45deg) scale(0.8); opacity: 0.3;
+        }
+        body.critical-mode .brand-tag { border-left: none; padding-left: 0; }
+        body.critical-mode .team-section { border-left: none; padding-left: 0; }
+        body.critical-mode .countdown-linear { border-top: none; justify-content: center; }
+        body.critical-mode .cd-item { align-items: center; }
+        body.critical-mode .btn-group { justify-content: center; }
 
         /* --- TYPOGRAPHY --- */
         .brand-tag {
@@ -111,93 +172,90 @@
             margin-bottom: 15px; display: block; font-weight: 900;
             border-left: 4px solid var(--cyan); padding-left: 15px;
             text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+            transition: all 1s;
         }
+        
         h1 {
             font-family: 'Russo One', sans-serif; font-size: 5rem; line-height: 0.9;
             text-transform: uppercase; margin-bottom: 15px; color: var(--white);
-            text-shadow: 4px 4px 0px #333;
+            position: relative; text-shadow: 4px 4px 0px #333;
+            animation: glitch-skew 5s infinite;
         }
+        @keyframes glitch-skew {
+            0%, 100% { transform: skew(0deg); text-shadow: 4px 4px 0px #333; }
+            95% { transform: skew(0deg); text-shadow: 4px 4px 0px #333; }
+            96% { transform: skew(-2deg); text-shadow: 4px 4px 0px var(--neon-pink); }
+            97% { transform: skew(2deg); text-shadow: -4px -4px 0px var(--cyan); }
+            98% { transform: skew(0deg); text-shadow: 4px 4px 0px #333; }
+        }
+
         .subtitle {
             font-size: 1.8rem; color: var(--neon-pink);
             font-family: 'Russo One', sans-serif; letter-spacing: 2px; margin-bottom: 30px;
-            text-shadow: 2px 2px 0px #8a0022;
+            text-shadow: 0 0 10px var(--neon-pink);
         }
 
-        /* --- TEAM TYPEWRITER SECTION --- */
+        /* --- FLAVOR TEXT --- */
+        .flavor-text-container {
+            position: fixed; top: 50%; right: 10%; transform: translateY(-50%);
+            width: 350px; text-align: right;
+            font-family: 'Share Tech Mono', monospace; font-size: 1.2rem;
+            color: var(--cyan); z-index: 400; pointer-events: none;
+            text-shadow: 0 0 15px rgba(0, 243, 255, 0.6); line-height: 1.4;
+            transition: all 1s ease;
+        }
+
+        /* --- TEAM SECTION --- */
         .team-section {
-            margin-bottom: 40px;
-            border-left: 1px solid rgba(255, 255, 255, 0.2);
-            padding-left: 15px;
+            margin-bottom: 40px; border-left: 1px solid rgba(255, 255, 255, 0.2); padding-left: 15px; position: relative;
+            transition: all 1s;
         }
-        .team-header {
-            font-size: 0.7rem; letter-spacing: 2px; color: #888;
-            font-weight: 700; text-transform: uppercase; margin-bottom: 5px;
-            font-family: 'Montserrat', sans-serif;
+        .team-section::before {
+            content: ''; position: absolute; left: -1px; top: 0; height: 100%; width: 2px;
+            background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: pulse-line 2s infinite;
         }
-        .team-typewriter {
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 1.1rem; 
-            min-height: 1.5rem; 
-            display: flex; align-items: center;
-        }
-        
-        /* The Link Itself */
-        .txt-link {
-            text-decoration: none;
-            color: var(--cyan);
-            text-shadow: 0 0 5px rgba(0, 243, 255, 0.3);
-            transition: all 0.3s ease;
-            pointer-events: none; /* Disabled while typing */
-            cursor: default;
-        }
-
-        /* Active State (Fully Typed) */
-        .txt-link.active {
-            pointer-events: auto; /* Clickable */
-            cursor: pointer;
-            border-bottom: 1px solid transparent;
-        }
-
-        /* Hover Glow Effect */
-        .txt-link.active:hover {
-            color: #fff;
-            text-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan), 0 0 40px var(--cyan);
-        }
-
-        .cursor {
-            color: var(--neon-pink);
-            animation: blink 1s infinite;
-        }
+        @keyframes pulse-line { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        .team-header { font-size: 0.7rem; letter-spacing: 2px; color: #888; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
+        .team-typewriter { font-family: 'Share Tech Mono', monospace; font-size: 1.1rem; min-height: 1.5rem; display: flex; align-items: center; justify-content: center; }
+        .txt-link { text-decoration: none; color: var(--cyan); text-shadow: 0 0 5px rgba(0, 243, 255, 0.3); transition: all 0.3s ease; pointer-events: none; cursor: default; }
+        .txt-link.active { pointer-events: auto; cursor: pointer; border-bottom: 1px solid transparent; }
+        .txt-link.active:hover { color: #fff; text-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan); }
+        .cursor { color: var(--neon-pink); animation: blink 0.8s infinite; text-shadow: 0 0 5px var(--neon-pink); }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
         /* --- COUNTDOWN --- */
-        .countdown-linear {
-            display: flex; gap: 30px; margin-bottom: 40px;
-            border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px; max-width: 500px;
-        }
-        .cd-item { display: flex; flex-direction: column; align-items: flex-start; }
+        .countdown-linear { display: flex; gap: 30px; margin-bottom: 40px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px; max-width: 500px; transition: all 1s; }
+        .cd-item { display: flex; flex-direction: column; align-items: flex-start; transition: all 1s; }
         .cd-num { font-family: 'Russo One', sans-serif; font-size: 2.5rem; color: var(--white); text-shadow: 3px 3px 0px #333; }
         .cd-label { font-size: 0.7rem; text-transform: uppercase; color: #ccc; letter-spacing: 1px; margin-top: 5px; font-weight: 700; }
 
-        /* --- BUTTONS --- */
-        .btn-group { display: flex; gap: 20px; flex-wrap: wrap; }
+        /* --- BUTTONS & TOOLTIP --- */
+        .btn-group { display: flex; gap: 20px; flex-wrap: wrap; position: relative; transition: all 1s; }
+        
+        .discord-tooltip {
+            position: absolute; top: 120%; left: 0; width: 320px;
+            background: rgba(5, 10, 20, 0.95); border: 1px solid var(--cyan); border-left: 4px solid var(--cyan);
+            padding: 15px; font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; line-height: 1.4;
+            color: var(--cyan); opacity: 0; pointer-events: none; transition: opacity 0.2s ease-in-out;
+            z-index: 100; box-shadow: 0 0 20px rgba(0, 243, 255, 0.15); white-space: pre-line; text-align: left;
+        }
+        .discord-tooltip.visible { opacity: 1; }
+
         .btn { 
-            text-decoration: none; padding: 15px 30px; 
-            text-transform: uppercase; font-weight: 900; font-size: 0.9rem; 
-            letter-spacing: 2px; transition: 0.2s; cursor: pointer; text-align: center;
-            box-shadow: 5px 5px 0px rgba(0,0,0,0.5);
+            text-decoration: none; padding: 15px 30px; text-transform: uppercase; font-weight: 900; font-size: 0.9rem; 
+            letter-spacing: 2px; transition: 0.2s; cursor: pointer; text-align: center; box-shadow: 5px 5px 0px rgba(0,0,0,0.5);
         }
         .btn:active { transform: translate(2px, 2px); box-shadow: 3px 3px 0px rgba(0,0,0,0.5); }
         .btn-primary { background: var(--neon-pink); color: var(--white); border: none; clip-path: polygon(0 0, 100% 0, 100% 80%, 90% 100%, 0 100%); }
-        .btn-primary:hover { background: var(--white); color: var(--neon-pink); }
+        .btn-primary:hover { background: var(--white); color: var(--neon-pink); box-shadow: 0 0 20px var(--neon-pink); }
         .btn-secondary { background: rgba(0, 243, 255, 0.1); border: 2px solid var(--cyan); color: var(--cyan); clip-path: polygon(0 0, 100% 0, 100% 80%, 90% 100%, 0 100%); }
-        .btn-secondary:hover { background: var(--cyan); color: #000; }
+        .btn-secondary:hover { background: var(--cyan); color: #000; box-shadow: 0 0 20px var(--cyan); }
 
-        /* --- LINKS --- */
+        /* --- LINKS GRID --- */
         .links-header { font-family: 'Russo One', sans-serif; font-size: 3rem; margin-bottom: 40px; color: var(--white); border-bottom: 4px solid var(--neon-pink); padding-bottom: 10px; display: inline-block; }
         .links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 600px; }
         .link-card { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); padding: 25px; text-decoration: none; color: var(--white); display: flex; justify-content: space-between; transition: 0.2s; backdrop-filter: blur(5px); box-shadow: 4px 4px 0px rgba(0,0,0,0.3); }
-        .link-card:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0px rgba(0,0,0,0.3); background: rgba(255,255,255,0.15); }
+        .link-card:hover { transform: translate(2px, 2px); box-shadow: 0 0 20px rgba(0,243,255,0.3); background: rgba(255,255,255,0.15); border-color: var(--cyan); }
         .link-card span { font-family: 'Russo One', sans-serif; text-transform: uppercase; letter-spacing: 1px; font-size: 1rem; }
         .arrow-icon { font-size: 1.2rem; color: var(--cyan); font-weight: 900; }
         .back-btn { margin-top: 40px; background: transparent; border: none; color: #888; cursor: pointer; font-family: 'Montserrat', sans-serif; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; transition: 0.3s; }
@@ -205,25 +263,73 @@
 
         /* --- 3D REACTOR --- */
         .reactor-container { 
-            position: absolute; top: 50%; right: -5%; 
-            transform: translateY(-50%) rotateX(15deg) rotateY(-15deg);
-            width: 800px; height: 800px; z-index: -1; opacity: 0.6; pointer-events: none; 
-            transition: all 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+            position: absolute; top: 50%; right: -5%; transform: translateY(-50%) rotateX(15deg) rotateY(-15deg);
+            width: 800px; height: 800px; z-index: -1; opacity: 0.6; pointer-events: none; transition: all 1.5s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        body.links-active .reactor-container { 
-            right: 50%; transform: translate(50%, -50%) rotateX(15deg) rotateY(-45deg) scale(0.8); opacity: 0.2; 
-        }
+        body.links-active .reactor-container { right: 50%; transform: translate(50%, -50%) rotateX(15deg) rotateY(-45deg) scale(0.8); opacity: 0.2; }
         .orbit-ring { position: absolute; top: 50%; left: 50%; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); transform: translate(-50%, -50%); }
-        .r1 { width: 60%; height: 60%; border-color: rgba(255, 42, 93, 0.3); animation: rotateR 20s linear infinite; }
-        .r2 { width: 80%; height: 80%; border-color: rgba(0, 243, 255, 0.2); animation: rotateL 30s linear infinite; }
+        .r1 { width: 60%; height: 60%; border-color: rgba(255, 42, 93, 0.3); animation: rotateR 20s linear infinite; box-shadow: 0 0 20px rgba(255, 42, 93, 0.2); }
+        .r2 { width: 80%; height: 80%; border-color: rgba(0, 243, 255, 0.2); animation: rotateL 30s linear infinite; box-shadow: 0 0 20px rgba(0, 243, 255, 0.2); }
         .r3 { width: 100%; height: 100%; border: 1px dashed rgba(255,255,255,0.1); animation: rotateR 60s linear infinite; }
-        .core { position: absolute; top: 50%; left: 50%; width: 200px; height: 200px; transform: translate(-50%, -50%); background: radial-gradient(circle, rgba(0,243,255,0.2) 0%, transparent 70%); filter: blur(20px); animation: pulseCore 3s infinite ease-in-out; }
+        .core { position: absolute; top: 50%; left: 50%; width: 200px; height: 200px; transform: translate(-50%, -50%); background: radial-gradient(circle, rgba(0,243,255,0.4) 0%, transparent 70%); filter: blur(20px); animation: pulseCore 3s infinite ease-in-out; }
         @keyframes rotateR { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
         @keyframes rotateL { from { transform: translate(-50%, -50%) rotate(360deg); } to { transform: translate(-50%, -50%) rotate(0deg); } }
-        @keyframes pulseCore { 0%, 100% { opacity: 0.5; scale: 1; } 50% { opacity: 0.8; scale: 1.2; } }
+        @keyframes pulseCore { 0%, 100% { opacity: 0.5; scale: 1; } 50% { opacity: 0.9; scale: 1.3; } }
+
+        /* --- END SCREEN (GLITCH STYLE) --- */
+        #end-screen {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 99999;
+            align-items: center; justify-content: center; 
+            text-align: left; font-family: 'Share Tech Mono', monospace; color: var(--white);
+        }
+        
+        .terminal-container { max-width: 900px; width: 90%; position: relative; }
+        
+        .log-line { font-size: 0.9rem; margin-bottom: 5px; opacity: 0; animation: fadeIn 0.2s forwards; }
+        .log-line.error { color: var(--error-red); }
+        .log-line.success { color: var(--cyan); }
+        .log-line.info { color: #888; }
+
+        .end-title {
+            font-family: 'Russo One', sans-serif; font-size: 4.5rem; line-height: 1;
+            color: var(--white); margin-top: 40px; opacity: 0;
+            text-transform: uppercase; text-shadow: 0 0 30px rgba(255,255,255,0.3);
+            animation: glitchFade 1s forwards;
+        }
+        
+        .end-subtitle {
+            font-family: 'Share Tech Mono', monospace; font-size: 1.5rem;
+            color: var(--cyan); margin-top: 10px; margin-bottom: 60px; opacity: 0;
+            letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px var(--cyan);
+            animation: fadeIn 2s forwards;
+        }
+
+        .end-buttons { display: flex; gap: 30px; opacity: 0; animation: fadeIn 2s forwards; }
+
+        /* ROUNDED BUTTONS FOR END SCREEN */
+        .btn-glitch {
+            padding: 15px 30px; text-decoration: none; font-family: 'Russo One', sans-serif;
+            font-size: 1rem; text-transform: uppercase; position: relative; cursor: pointer;
+            transition: 0.2s; border: none;
+            border-radius: 12px; /* ROUNDED */
+        }
+        
+        .btn-glitch.purple { background: var(--discord-blurple); color: white; box-shadow: 0 5px 0px #3c45a5; }
+        .btn-glitch.purple:hover { transform: translateY(2px); box-shadow: 0 2px 0px #3c45a5; filter: brightness(1.2); }
+
+        .btn-glitch.dark { background: transparent; color: #555; border: 1px solid #333; }
+        .btn-glitch.dark:hover { border-color: var(--error-red); color: var(--error-red); text-shadow: 0 0 5px var(--error-red); }
+
+        @keyframes fadeIn { to { opacity: 1; } }
+        @keyframes glitchFade {
+            0% { opacity: 0; transform: skew(10deg); filter: blur(10px); }
+            50% { opacity: 0.5; transform: skew(-10deg); }
+            100% { opacity: 1; transform: skew(0deg); filter: blur(0); }
+        }
 
         @media (max-width: 900px) {
-            .view { padding: 0 5%; align-items: center; text-align: center; }
+            .view { padding: 0 5%; }
             h1 { font-size: 3.5rem; }
             .countdown-linear { justify-content: center; }
             .links-grid { width: 100%; }
@@ -231,11 +337,27 @@
             .btn { width: 100%; margin-bottom: 10px; }
             .reactor-container { top: 60%; width: 400px; height: 400px; right: 50%; transform: translateX(50%); }
             .hud-static { padding: 0 8px; font-size: 0.6rem; }
-            .team-section { border-left: none; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; padding-left: 0; display: flex; flex-direction: column; align-items: center; }
+            
+            body.critical-mode .flavor-text-container { 
+                top: auto; bottom: 15%; right: 50%; transform: translateX(50%); 
+                width: 90%; font-size: 0.9rem;
+            }
+            
+            .end-title { font-size: 2.5rem; text-align: center; }
+            .end-subtitle { font-size: 1rem; text-align: center; }
+            .end-buttons { flex-direction: column; width: 100%; align-items: center; }
+            .terminal-container { text-align: center; }
+            .log-line { text-align: left; }
         }
     </style>
 </head>
 <body>
+
+    <!-- IMMERSIVE LAYERS -->
+    <div class="crt-overlay"></div>
+    <div class="mouse-spotlight"></div>
+    <div class="scan-line"></div>
+    <div id="particle-container"></div>
 
     <video autoplay muted loop playsinline id="bg-video">
         <source src="bg.mp4" type="video/mp4">
@@ -244,113 +366,168 @@
     
     <audio id="bgm" loop></audio>
 
-    <div class="hud-bar hud-top">
-        <div class="hud-static cyan">[ SYSTEM ONLINE ]</div>
-        <div class="ticker-wrap">
-            <div class="ticker">
-                <div class="ticker-item">ENCRYPTION: AES-4096 // SECURE CONNECTION ESTABLISHED</div>
-                <div class="ticker-item">NEW DATA PACKET RECEIVED...</div>
-                <div class="ticker-item">PROTOCOL: IMAGO_DEI_V1 // UPLOADING CONSCIOUSNESS...</div>
-                <div class="ticker-item">WARNING: REALITY INTEGRITY AT 98%</div>
-                <div class="ticker-item">USER DETECTED // WELCOME TO THE NETWORK</div>
+    <!-- WRAPPER FOR MAIN UI -->
+    <div id="main-ui">
+        <div class="hud-bar hud-top">
+            <div class="hud-static cyan">[ SYSTEM ONLINE ]</div>
+            <div class="ticker-wrap">
+                <div class="ticker">
+                    <div class="ticker-item">ENCRYPTION: AES-4096 // SECURE CONNECTION ESTABLISHED</div>
+                    <div class="ticker-item">NEW DATA PACKET RECEIVED...</div>
+                    <div class="ticker-item">PROTOCOL: IMAGO_DEI_V1 // UPLOADING CONSCIOUSNESS...</div>
+                    <div class="ticker-item">WARNING: REALITY INTEGRITY AT 98%</div>
+                    <div class="ticker-item">USER DETECTED // WELCOME TO THE NETWORK</div>
+                </div>
             </div>
+            <div class="hud-static" id="clock">00:00:00</div>
         </div>
-        <div class="hud-static" id="clock">00:00:00</div>
-    </div>
 
-    <div class="hud-bar hud-bottom">
-        <div class="hud-static pink">:: SOVRIN NETWORK ::</div>
-        <div class="ticker-wrap">
-            <div class="ticker" style="animation-direction: reverse; animation-duration: 40s;">
-                <div class="ticker-item">LISTENING TO PORT 8080...</div>
-                <div class="ticker-item">"THE FUTURE IS ALREADY HERE"</div>
-                <div class="ticker-item">COPYRIGHT © 2025 SOVRIN</div>
-                <div class="ticker-item">RENDER: GPU_01 [OK]</div>
+        <!-- FLAVOR TEXT -->
+        <div id="flavor-text" class="flavor-text-container">
+            <span id="flavor-content"></span><span class="cursor">_</span>
+        </div>
+
+        <div class="hud-bar hud-bottom">
+            <div class="hud-static pink">:: SOVRIN NETWORK ::</div>
+            <div class="ticker-wrap">
+                <div class="ticker" style="animation-direction: reverse; animation-duration: 40s;">
+                    <div class="ticker-item">LISTENING TO PORT 8080...</div>
+                    <div class="ticker-item">"THE FUTURE IS ALREADY HERE"</div>
+                    <div class="ticker-item">COPYRIGHT © 2025 SOVRIN</div>
+                    <div class="ticker-item">RENDER: GPU_01 [OK]</div>
+                </div>
             </div>
+            <div class="hud-static">V. 1.8.0</div>
         </div>
-        <div class="hud-static">V. 1.1.4</div>
-    </div>
 
-    <div id="start-screen">
-        <div class="start-btn">[ INITIALIZE PROTOCOL ]</div>
-        <div style="margin-top:10px; font-size:0.7rem; color:#666;">CLICK TO START SYSTEM</div>
-    </div>
+        <div class="reactor-container">
+            <div class="orbit-ring r3"></div>
+            <div class="orbit-ring r2"></div>
+            <div class="orbit-ring r1"></div>
+            <div class="core"></div>
+        </div>
 
-    <div class="reactor-container">
-        <div class="orbit-ring r3"></div>
-        <div class="orbit-ring r2"></div>
-        <div class="orbit-ring r1"></div>
-        <div class="core"></div>
-    </div>
+        <div class="view-container">
+            <div class="view active" id="home-view">
+                <div style="max-width: 650px;">
+                    <span class="brand-tag">SYSTEM READY // VOL. 1</span>
+                    <h1>Imago Dei</h1>
+                    <div class="subtitle">11 . 23 . 2025</div>
 
-    <div class="view-container">
-        <!-- HOME VIEW -->
-        <div class="view active" id="home-view">
-            <div style="max-width: 650px;">
-                <span class="brand-tag">SYSTEM READY // VOL. 1</span>
-                <h1>Imago Dei</h1>
-                <div class="subtitle">11 . 23 . 2025</div>
+                    <div class="team-section">
+                        <div class="team-header">THE TEAM</div>
+                        <div class="team-typewriter">
+                            <a href="#" target="_blank" class="txt-link" id="team-link"></a><span class="cursor">_</span>
+                        </div>
+                    </div>
 
-                <!-- TEAM SECTION -->
-                <div class="team-section">
-                    <div class="team-header">THE TEAM</div>
-                    <div class="team-typewriter">
-                        <!-- IMPORTANT: This is an A tag now -->
-                        <a href="#" target="_blank" class="txt-link" id="team-link"></a><span class="cursor">_</span>
+                    <div class="countdown-linear">
+                        <div class="cd-item"><span class="cd-num" id="days">00</span><span class="cd-label">Days</span></div>
+                        <div class="cd-item"><span class="cd-num" id="hours">00</span><span class="cd-label">Hrs</span></div>
+                        <div class="cd-item"><span class="cd-num" id="minutes">00</span><span class="cd-label">Min</span></div>
+                        <div class="cd-item"><span class="cd-num" id="seconds">00</span><span class="cd-label">Sec</span></div>
+                    </div>
+
+                    <div class="btn-group">
+                        <!-- TOOLTIP -->
+                        <div id="discord-tooltip" class="discord-tooltip"></div>
+                        
+                        <a href="https://discord.gg/ubTVEtFdRM" target="_blank" class="btn btn-secondary" onmouseenter="playHover()">
+                            JOIN DISCORD
+                        </a>
+                        <button class="btn btn-primary" onclick="switchTab('links')" onmouseenter="playHover()">
+                            ACCESS NETWORK
+                        </button>
                     </div>
                 </div>
-                <!-- END TEAM SECTION -->
+            </div>
 
-                <div class="countdown-linear">
-                    <div class="cd-item"><span class="cd-num" id="days">00</span><span class="cd-label">Days</span></div>
-                    <div class="cd-item"><span class="cd-num" id="hours">00</span><span class="cd-label">Hrs</span></div>
-                    <div class="cd-item"><span class="cd-num" id="minutes">00</span><span class="cd-label">Min</span></div>
-                    <div class="cd-item"><span class="cd-num" id="seconds">00</span><span class="cd-label">Sec</span></div>
-                </div>
-
-                <div class="btn-group">
-                    <a href="https://discord.gg/ubTVEtFdRM" target="_blank" class="btn btn-secondary" onmouseenter="playHover()">
-                        JOIN DISCORD
-                    </a>
-                    <button class="btn btn-primary" onclick="switchTab('links')" onmouseenter="playHover()">
-                        ACCESS NETWORK
+            <div class="view inactive-right" id="links-view">
+                <div style="max-width: 600px; width: 100%;">
+                    <h2 class="links-header">SOCIAL MATRIX</h2>
+                    <div class="links-grid">
+                        <a href="https://www.instagram.com/sovrinrecords/" target="_blank" class="link-card" onmouseenter="playHover()">
+                            <span>INSTAGRAM</span><div class="arrow-icon">→</div>
+                        </a>
+                        <a href="https://soundcloud.com/sovrinofficial" target="_blank" class="link-card" onmouseenter="playHover()">
+                            <span>SOUNDCLOUD</span><div class="arrow-icon">→</div>
+                        </a>
+                        <a href="https://www.tiktok.com/@sovrinrecords" target="_blank" class="link-card" onmouseenter="playHover()">
+                            <span>TIKTOK</span><div class="arrow-icon">→</div>
+                        </a>
+                        <a href="https://discord.gg/ubTVEtFdRM" target="_blank" class="link-card" onmouseenter="playHover()">
+                            <span>DISCORD SERVER</span><div class="arrow-icon">→</div>
+                        </a>
+                    </div>
+                    <button class="back-btn" onclick="switchTab('home')" onmouseenter="playHover()">
+                        ← RETURN TO TERMINAL
                     </button>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- LINKS VIEW -->
-        <div class="view inactive-right" id="links-view">
-            <div style="max-width: 600px; width: 100%;">
-                <h2 class="links-header">SOCIAL MATRIX</h2>
-                <div class="links-grid">
-                    <a href="https://www.instagram.com/sovrinrecords/" target="_blank" class="link-card" onmouseenter="playHover()">
-                        <span>INSTAGRAM</span><div class="arrow-icon">→</div>
-                    </a>
-                    <a href="https://soundcloud.com/sovrinofficial" target="_blank" class="link-card" onmouseenter="playHover()">
-                        <span>SOUNDCLOUD</span><div class="arrow-icon">→</div>
-                    </a>
-                    <a href="https://www.tiktok.com/@sovrinrecords" target="_blank" class="link-card" onmouseenter="playHover()">
-                        <span>TIKTOK</span><div class="arrow-icon">→</div>
-                    </a>
-                    <a href="https://discord.gg/ubTVEtFdRM" target="_blank" class="link-card" onmouseenter="playHover()">
-                        <span>DISCORD SERVER</span><div class="arrow-icon">→</div>
-                    </a>
+    <!-- END SCREEN -->
+    <div id="end-screen">
+        <div class="terminal-container">
+            <div class="terminal-logs">
+                <div id="log-1" class="log-line error"></div>
+                <div id="log-2" class="log-line info"></div>
+                <div id="log-3" class="log-line success"></div>
+                <div id="log-4" class="log-line success"></div>
+                <div id="log-5" class="log-line success"></div>
+            </div>
+            
+            <div id="final-content" style="opacity: 0; transition: opacity 1s ease;">
+                <h1 class="end-title">FULL COMPILATION<br>COMING SOON</h1>
+                <div class="end-subtitle">ON ALL STREAMING PLATFORMS</div>
+                
+                <div class="end-buttons">
+                    <a href="https://discord.gg/ubTVEtFdRM" target="_blank" class="btn-glitch purple">JOIN DISCORD</a>
+                    <button class="btn-glitch dark" onclick="location.reload()">REBOOT</button>
                 </div>
-                <button class="back-btn" onclick="switchTab('home')" onmouseenter="playHover()">
-                    ← RETURN TO TERMINAL
-                </button>
             </div>
         </div>
+    </div>
+
+    <div id="start-screen">
+        <div class="start-btn">[ INITIALIZE PROTOCOL ]</div>
+        <div style="margin-top:10px; font-size:0.7rem; color:#ccc;">CLICK TO START SYSTEM</div>
     </div>
 
     <script>
         const startScreen = document.getElementById('start-screen');
         const bgm = document.getElementById('bgm');
         let audioCtx;
+        let flavorTimer; 
+        let teamTimer;
         
-        // Playlist Logic
-        const playlist = [ "bgm1.mp3", "bgm2.mp3", "bgm3.mp3" ];
+        // --- IMMERSIVE INTERACTION ---
+        document.addEventListener('mousemove', (e) => {
+            document.body.style.setProperty('--x', `${e.clientX}px`);
+            document.body.style.setProperty('--y', `${e.clientY}px`);
+        });
+
+        const particleContainer = document.getElementById('particle-container');
+        function createParticles() {
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                const size = Math.random() * 2 + 1;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.left = `${Math.random() * 100}vw`;
+                const duration = Math.random() * 10 + 10;
+                const delay = Math.random() * 5;
+                particle.style.animationDuration = `${duration}s`;
+                particle.style.animationDelay = `${delay}s`;
+                particleContainer.appendChild(particle);
+            }
+        }
+        createParticles();
+
+        // Playlist
+        const playlist = [ "bgm1.mp3", "bgm2.mp3", "bgm3.mp3", "bgm4.mp3" ];
         const randomTrack = playlist[Math.floor(Math.random() * playlist.length)];
         bgm.src = randomTrack;
         bgm.volume = 0.5;
@@ -363,7 +540,146 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // --- TYPEWRITER & LINKS CONFIG ---
+        // --- SOUND UTILS ---
+        function playHover() {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            const now = audioCtx.currentTime;
+            osc.frequency.setValueAtTime(300, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
+            gain.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        }
+
+        function playTypeSound() {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.02, audioCtx.currentTime); 
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.03);
+        }
+
+        function fadeOutAudio() {
+            if (!bgm) return;
+            const fadeAudio = setInterval(() => {
+                if (bgm.volume > 0.05) {
+                    bgm.volume -= 0.05;
+                } else {
+                    bgm.volume = 0;
+                    bgm.pause();
+                    clearInterval(fadeAudio);
+                }
+            }, 200);
+        }
+
+        // --- DISCORD TOOLTIP LOGIC ---
+        const discordBtn = document.querySelector('.btn-secondary');
+        const tooltip = document.getElementById('discord-tooltip');
+        const discordReasons = [
+            "> Occasional Beat Battles/Events",
+            "> Leveling System with rewarding perks",
+            "> POSSIBLE LISTENING PARTY FOR THE COMPILATION",
+            "> and more..."
+        ];
+        let tooltipTimer;
+        
+        discordBtn.addEventListener('mouseenter', () => {
+            tooltip.classList.add('visible');
+            tooltip.innerHTML = '';
+            typeTooltipContent(0, 0);
+        });
+
+        discordBtn.addEventListener('mouseleave', () => {
+             tooltip.classList.remove('visible');
+             clearTimeout(tooltipTimer);
+        });
+
+        function typeTooltipContent(lineIndex, charIndex) {
+            if (lineIndex >= discordReasons.length) return;
+            const currentLine = discordReasons[lineIndex];
+            if (charIndex < currentLine.length) {
+                if(charIndex === 0) {
+                     tooltip.innerHTML += (lineIndex > 0 ? '<br>' : '') + currentLine.charAt(charIndex);
+                } else {
+                     tooltip.innerHTML += currentLine.charAt(charIndex);
+                }
+                playTypeSound(); 
+                tooltipTimer = setTimeout(() => typeTooltipContent(lineIndex, charIndex + 1), 15);
+            } else {
+                tooltipTimer = setTimeout(() => typeTooltipContent(lineIndex + 1, 0), 50);
+            }
+        }
+
+        // --- FLAVOR TEXT ---
+        const flavorElement = document.getElementById('flavor-content');
+        const flavorMessages = [
+            "LOCK IN THERE'S {hours} HOURS LEFT",
+            "you've been locked in right?",
+            "how's the weather?",
+            "full web is coming soon",
+            "what did you eat for dinner?",
+            "why not join the discord?",
+            "our soundcloud is down rn btw but currently fixing it"
+        ];
+        let flavIndex = 0;
+        let flavChar = 0;
+        let flavDeleting = false;
+        
+        function getHoursRemaining() {
+            const now = new Date().getTime();
+            let end = countDownDate;
+            const distance = end - now;
+            if(distance < 0) return 0;
+            return Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        }
+
+        function flavorTypeWriter() {
+            let currentMsg = flavorMessages[flavIndex];
+            
+            if(flavIndex === 0) {
+                const now = new Date().getTime();
+                const target = countDownDate;
+                const distance = target - now;
+                const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                if(h > 0) currentMsg = `LOCK IN THERE'S ${h} HOURS LEFT`;
+                else currentMsg = `LOCK IN THERE'S ${m} MINUTES LEFT`;
+            }
+
+            let speed = 100;
+            if (flavDeleting) {
+                flavorElement.textContent = currentMsg.substring(0, flavChar - 1);
+                flavChar--;
+                speed = 50;
+            } else {
+                flavorElement.textContent = currentMsg.substring(0, flavChar + 1);
+                flavChar++;
+                if(Math.random() > 0.5) playTypeSound(); 
+                speed = 100;
+            }
+
+            if (!flavDeleting && flavChar === currentMsg.length) {
+                speed = 3000; flavDeleting = true;
+            } else if (flavDeleting && flavChar === 0) {
+                flavDeleting = false;
+                flavIndex = Math.floor(Math.random() * flavorMessages.length);
+                speed = 500;
+            }
+            flavorTimer = setTimeout(flavorTypeWriter, speed);
+        }
+
+        // --- TEAM TYPEWRITER ---
         const teamMembers = [
             { name: "Limitless (sometimes miles prolly)", link: "https://limitlessedm.straw.page/" },
             { name: "Gentelhen", link: "https://linktr.ee/gentelhen" },
@@ -378,62 +694,50 @@
         let charIndex = 0;
         let isDeleting = false;
         let typeSpeed = 100;
-        let timer;
-        let isHovering = false; // Flag to pause typewriter
+        let isHovering = false;
 
-        // Hover Event Listeners for Pausing
         linkElement.addEventListener('mouseenter', () => {
             if(linkElement.classList.contains('active')) {
                 isHovering = true;
-                clearTimeout(timer); // Stop the loop
+                clearTimeout(teamTimer);
             }
         });
 
         linkElement.addEventListener('mouseleave', () => {
             if(isHovering) {
                 isHovering = false;
-                // Resume loop immediately
                 typeWriter(); 
             }
         });
 
         function typeWriter() {
-            // If hovering, do nothing (safeguard)
             if(isHovering) return;
-
             const currentMember = teamMembers[memberIndex];
             const currentName = currentMember.name;
 
             if (isDeleting) {
-                // Deleting phase
-                linkElement.classList.remove('active'); // Disable link/glow
-                linkElement.removeAttribute('href');    // Remove link
-                
+                linkElement.classList.remove('active');
+                linkElement.removeAttribute('href');
                 linkElement.textContent = currentName.substring(0, charIndex - 1);
                 charIndex--;
                 typeSpeed = 50;
             } else {
-                // Typing phase
                 linkElement.textContent = currentName.substring(0, charIndex + 1);
                 charIndex++;
                 typeSpeed = 100;
             }
 
             if (!isDeleting && charIndex === currentName.length) {
-                // Name fully typed: ACTIVATE LINK
                 linkElement.href = currentMember.link;
-                linkElement.classList.add('active'); // Activates CSS glow & pointer events
-                
-                typeSpeed = 2000; // Pause before deleting
+                linkElement.classList.add('active');
+                typeSpeed = 2000;
                 isDeleting = true;
             } else if (isDeleting && charIndex === 0) {
-                // Fully deleted
                 isDeleting = false;
                 memberIndex = (memberIndex + 1) % teamMembers.length;
                 typeSpeed = 500;
             }
-
-            timer = setTimeout(typeWriter, typeSpeed);
+            teamTimer = setTimeout(typeWriter, typeSpeed);
         }
 
         // --- FAVICON ---
@@ -451,73 +755,71 @@
         }
         makeFaviconCircular();
 
-        // --- INTERACTION ---
-        startScreen.addEventListener('click', () => {
-            startScreen.style.opacity = '0';
-            setTimeout(() => {
-                startScreen.style.display = 'none';
-                typeWriter(); // Start typing loop
-            }, 800);
+        // --- ENDGAME SEQUENCE ---
+        async function typeLog(id, text, speed = 40) {
+            const el = document.getElementById(id);
+            for(let i=0; i < text.length; i++) {
+                el.textContent += text.charAt(i);
+                playTypeSound();
+                await new Promise(r => setTimeout(r, speed));
+            }
+        }
+
+        function triggerEndgame() {
+            // 1. KILL SWITCH
+            clearTimeout(flavorTimer);
+            clearTimeout(teamTimer);
+            fadeOutAudio();
             
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            bgm.play().catch(e => console.error("Audio error:", e));
-        });
-
-        // --- SFX ---
-        function playHover() {
-            if(!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.type = 'sine';
-            const now = audioCtx.currentTime;
-            osc.frequency.setValueAtTime(800, now);
-            osc.frequency.exponentialRampToValueAtTime(1400, now + 0.1);
-            gain.gain.setValueAtTime(0.05, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-            osc.start(now);
-            osc.stop(now + 0.1);
+            // 2. Hide Main UI
+            document.getElementById('main-ui').style.opacity = '0';
+            
+            // 3. Transition to End Screen
+            setTimeout(async () => {
+                document.getElementById('main-ui').style.display = 'none';
+                document.getElementById('end-screen').style.display = 'flex';
+                
+                // 4. Run Log Sequence
+                await new Promise(r => setTimeout(r, 500));
+                await typeLog('log-1', '> SYSTEM FAILURE DETECTED...');
+                
+                await new Promise(r => setTimeout(r, 300));
+                await typeLog('log-2', '> ATTEMPTING REBOOT...');
+                
+                await new Promise(r => setTimeout(r, 300));
+                await typeLog('log-3', '> LOADING IMAGO_DEI_VOL1...');
+                
+                await new Promise(r => setTimeout(r, 300));
+                await typeLog('log-4', '> DECRYPTING...');
+                
+                await new Promise(r => setTimeout(r, 500));
+                await typeLog('log-5', '> ACCESS GRANTED.');
+                
+                // 5. Reveal Big Text & Buttons
+                await new Promise(r => setTimeout(r, 500));
+                document.getElementById('final-content').style.opacity = '1';
+                
+            }, 2000);
         }
 
-        function switchTab(target) {
-            const home = document.getElementById('home-view');
-            const links = document.getElementById('links-view');
-            const body = document.body;
-
-            // SFX
-            if(audioCtx) {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.type = 'sawtooth';
-                const now = audioCtx.currentTime;
-                osc.frequency.setValueAtTime(200, now);
-                osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                osc.start(now);
-                osc.stop(now + 0.3);
-            }
-
-            if (target === 'links') {
-                home.classList.remove('active'); home.classList.add('inactive-left');
-                links.classList.remove('inactive-right'); links.classList.add('active');
-                body.classList.add('links-active');
-            } else {
-                links.classList.remove('active'); links.classList.add('inactive-right');
-                home.classList.remove('inactive-left'); home.classList.add('active');
-                body.classList.remove('links-active');
-            }
-        }
-
-        // --- COUNTDOWN ---
+        // MAIN TIMER LOGIC
         const countDownDate = new Date("Nov 24, 2025 00:00:00").getTime();
-        setInterval(() => {
+        
+        const countdownTimer = setInterval(() => {
             const now = new Date().getTime();
-            const distance = countDownDate - now;
+            const target = countDownDate;
+            const distance = target - now;
+
+            if (distance < 3600000 && distance > 0) {
+                document.body.classList.add('critical-mode');
+            }
+
+            if (distance < 0) {
+                clearInterval(countdownTimer);
+                triggerEndgame();
+                return;
+            }
+
             const d = Math.floor(distance / (1000 * 60 * 60 * 24));
             const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
@@ -528,7 +830,45 @@
             document.getElementById("seconds").innerText = s < 10 ? "0"+s : s;
         }, 1000);
 
-        // Title Scroll
+        // --- INTERACTION ---
+        startScreen.addEventListener('click', () => {
+            const now = new Date().getTime();
+            const target = countDownDate;
+            
+            startScreen.style.opacity = '0';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                
+                if(now > target) {
+                    triggerEndgame();
+                } else {
+                    typeWriter(); 
+                    flavorTypeWriter();
+                }
+            }, 800);
+            
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            if (now <= target) {
+                bgm.play().catch(e => console.log("Audio blocked:", e));
+            }
+        });
+
+        function switchTab(target) {
+            const home = document.getElementById('home-view');
+            const links = document.getElementById('links-view');
+            playHover(); 
+            if (target === 'links') {
+                home.classList.remove('active'); home.classList.add('inactive-left');
+                links.classList.remove('inactive-right'); links.classList.add('active');
+                document.body.classList.add('links-active');
+            } else {
+                links.classList.remove('active'); links.classList.add('inactive-right');
+                home.classList.remove('inactive-left'); home.classList.add('active');
+                document.body.classList.remove('links-active');
+            }
+        }
+
         let titleText = "SOVRIN // IMAGO DEI   ::   "; 
         function scrollTitle() {
             titleText = titleText.substring(1) + titleText.substring(0, 1);
