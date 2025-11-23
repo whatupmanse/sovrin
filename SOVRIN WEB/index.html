@@ -397,7 +397,7 @@
                     <div class="ticker-item">RENDER: GPU_01 [OK]</div>
                 </div>
             </div>
-            <div class="hud-static">V. 1.8.0</div>
+            <div class="hud-static">V. 1.8.2</div>
         </div>
 
         <div class="reactor-container">
@@ -638,7 +638,8 @@
         
         function getHoursRemaining() {
             const now = new Date().getTime();
-            let end = countDownDate;
+            // Nov 24, 2025 at 12:00 AM EST (UTC-5)
+            let end = new Date("2025-11-24T00:00:00-05:00").getTime();
             const distance = end - now;
             if(distance < 0) return 0;
             return Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -649,7 +650,7 @@
             
             if(flavIndex === 0) {
                 const now = new Date().getTime();
-                const target = countDownDate;
+                const target = new Date("2025-11-24T00:00:00-05:00").getTime();
                 const distance = target - now;
                 const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
@@ -803,7 +804,8 @@
         }
 
         // MAIN TIMER LOGIC
-        const countDownDate = new Date("Nov 24, 2025 00:00:00").getTime();
+        // Fixed target: Nov 24 2025 12:00 AM EST
+        const countDownDate = new Date("2025-11-24T00:00:00-05:00").getTime();
         
         const countdownTimer = setInterval(() => {
             const now = new Date().getTime();
@@ -816,7 +818,8 @@
 
             if (distance < 0) {
                 clearInterval(countdownTimer);
-                triggerEndgame();
+                // If interactive, we trigger end game immediately
+                // If this page just loaded and time is up, we handle it in start button click
                 return;
             }
 
@@ -840,6 +843,7 @@
                 startScreen.style.display = 'none';
                 
                 if(now > target) {
+                    // Immediate endgame if time passed
                     triggerEndgame();
                 } else {
                     typeWriter(); 
